@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS trg_block_delete_facture_verifactu;

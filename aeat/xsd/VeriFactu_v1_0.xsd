@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
+    xmlns="https://www.agenciatributaria.gob.es/static_files/common/internet/dep/aduanas/es/aeat/sii/reg_factu/VeriFactu.xsd"
+    targetNamespace="https://www.agenciatributaria.gob.es/static_files/common/internet/dep/aduanas/es/aeat/sii/reg_factu/VeriFactu.xsd"
+    elementFormDefault="qualified">
+
+    <!-- ================================================= -->
+    <!-- ROOT -->
+    <!-- ================================================= -->
+    <xsd:element name="RegistroVeriFactu">
+        <xsd:complexType>
+            <xsd:sequence>
+
+                <xsd:element name="SistemaInformatico" type="SistemaInformaticoType"/>
+                <xsd:element name="Cabecera" type="CabeceraType"/>
+                <xsd:element name="Factura" type="FacturaType"/>
+
+                <!-- ✅ FIRMA XML (XAdES / DSIG) -->
+                <xsd:any namespace="http://www.w3.org/2000/09/xmldsig#"
+                         processContents="lax"
+                         minOccurs="0"
+                         maxOccurs="1"/>
+
+            </xsd:sequence>
+        </xsd:complexType>
+    </xsd:element>
+
+    <!-- ================================================= -->
+    <!-- SISTEMA -->
+    <!-- ================================================= -->
+    <xsd:complexType name="SistemaInformaticoType">
+        <xsd:sequence>
+            <xsd:element name="NombreRazon" type="xsd:string"/>
+            <xsd:element name="NIF" type="xsd:string"/>
+            <xsd:element name="Version" type="xsd:string"/>
+            <xsd:element name="Proveedor" type="xsd:string"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- ================================================= -->
+    <!-- CABECERA -->
+    <!-- ================================================= -->
+    <xsd:complexType name="CabeceraType">
+        <xsd:sequence>
+            <xsd:element name="Ejercicio" type="xsd:gYear"/>
+            <xsd:element name="FechaRegistro" type="xsd:dateTime"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- ================================================= -->
+    <!-- FACTURA -->
+    <!-- ================================================= -->
+    <xsd:complexType name="FacturaType">
+        <xsd:sequence>
+
+            <!-- ✅ EMISOR OBLIGATORIO -->
+            <xsd:element name="Emisor">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="NombreRazon" type="xsd:string"/>
+                        <xsd:element name="NIF" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="NumeroFactura" type="xsd:string"/>
+            <xsd:element name="FechaFactura" type="xsd:date"/>
+            <xsd:element name="ImporteTotal" type="xsd:decimal"/>
+
+        </xsd:sequence>
+    </xsd:complexType>
+
+</xsd:schema>
