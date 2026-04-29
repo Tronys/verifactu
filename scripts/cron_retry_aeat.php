@@ -24,8 +24,8 @@ if (!$res) {
     exit(1);
 }
 
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VeriFactuRegistry.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VerifactuAeatClient.php';
+require_once __DIR__.'/../class/VeriFactuRegistry.class.php';
+require_once __DIR__.'/../class/VerifactuAeatClient.php';
 
 // ======================================================
 // COMPROBACIONES BÁSICAS

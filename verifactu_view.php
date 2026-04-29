@@ -53,11 +53,11 @@ if ($action === 'generate_xml') {
     if (empty($user->rights->verifactu->admin)) accessforbidden();
 
 
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/aeat/xml/VeriFactuXmlBuilder.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/aeat/xml/VeriFactuXmlStorage.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/aeat/xml/VeriFactuXAdES.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/aeat/xml/VeriFactuXmlValidator.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/aeat/xml/VeriFactuXsdValidator.class.php';
+require_once __DIR__.'/class/VerifactuXmlBuilder.php';
+require_once __DIR__.'/aeat/xml/VeriFactuXmlStorage.class.php';
+require_once __DIR__.'/class/VerifactuXadesSigner.php';
+require_once __DIR__.'/aeat/xml/VeriFactuXmlValidator.class.php';
+require_once __DIR__.'/aeat/xml/VeriFactuXsdValidator.class.php';
 
 	
 	
@@ -80,20 +80,62 @@ require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/aeat/xml/VeriFactuXsdValidator
     }
 
     try {
-        // 1️⃣ Construir XML base
-        $xmlUnsigned = VeriFactuXmlBuilder::build($registry);
+        require_once __DIR__.'/class/VeriFactuRegistry.class.php';
+        require_once __DIR__.'/class/VeriFactuHash.class.php';
+        require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 
-        // 2️⃣ Firmar XAdES
-        $xades = new VeriFactuXAdES($db);
+        // 1. Reconstruir datos de la factura para el XML
+        $facture = new Facture($db);
+        if ($facture->fetch((int) $registry->fk_facture) <= 0) {
+            throw new Exception('Factura no encontrada (id='.$registry->fk_facture.')');
+        }
+        $facture->fetch_lines();
+        $facture->fetch_thirdparty();
 
-        $xmlSigned = $xades->sign(
-            $xmlUnsigned,
-            [
-                'pfx_file' => $conf->global->VERIFACTU_PFX_PATH,
-                'pfx_pass' => $conf->global->VERIFACTU_PFX_PASSWORD
-            ],
-            true // XAdES-T si hay TSA
-        );
+        $nifEmisor    = (string) ($conf->global->MAIN_INFO_SIREN ?? '');
+        $nombreEmisor = (string) ($conf->global->MAIN_INFO_SOCIETE_NOM ?? '');
+        $tipoFactura  = !empty($registry->tipo_factura) ? $registry->tipo_factura : VeriFactuHash::detectTipoFactura($facture);
+        $desgloseIva  = VeriFactuHash::desgloseIva($facture);
+        $destinatario = null;
+        if ($tipoFactura === 'F1') {
+            $tp  = $facture->thirdparty;
+            $nif = trim((string) ($tp->idprof1 ?? '')) ?: trim((string) ($tp->tva_intra ?? ''));
+            if ($nif) {
+                $destinatario = ['nombre' => (string) $tp->name, 'nif' => $nif];
+            }
+        }
+
+        // 2. Construir XML
+        $xmlUnsigned = VerifactuXmlBuilder::build([
+            'tipo'           => $registry->record_type,
+            'fecha'          => $registry->date_creation,
+            'factura'        => $facture->ref,
+            'fecha_factura'  => date('Y-m-d', (int) $facture->date),
+            'tipo_factura'   => $tipoFactura,
+            'nif_emisor'     => $nifEmisor,
+            'nombre_emisor'  => $nombreEmisor,
+            'total'          => (float) $registry->total_ttc,
+            'cuota_total'    => (float) ($registry->cuota_total ?? 0),
+            'huella'         => $registry->hash_actual,
+            'huella_anterior'=> $registry->hash_anterior,
+            'desglose_iva'   => $desgloseIva,
+            'destinatario'   => $destinatario,
+        ]);
+
+        // 3. Firmar XAdES
+        $pfxPath = (string) ($conf->global->VERIFACTU_PFX_PATH ?? '');
+        $pfxPass = (string) ($conf->global->VERIFACTU_PFX_PASSWORD ?? '');
+        $xmlSigned = VerifactuXadesSigner::sign($xmlUnsigned, $pfxPath, $pfxPass);
+
+        $tsaUrl = trim((string) ($conf->global->VERIFACTU_TSA_URL ?? ''));
+        if ($tsaUrl) {
+            $xmlSigned = VerifactuXadesSigner::addXadesTimestamp(
+                $xmlSigned,
+                $tsaUrl,
+                (string) ($conf->global->VERIFACTU_TSA_USER ?? ''),
+                (string) ($conf->global->VERIFACTU_TSA_PASSWORD ?? '')
+            );
+        }
 
         // 3️⃣ Validación interna
         $validation = VeriFactuXmlValidator::validate($xmlSigned);
@@ -108,7 +150,7 @@ require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/aeat/xml/VeriFactuXsdValidator
         // 4️⃣ Validación XSD AEAT
         $xsd = VeriFactuXsdValidator::validate(
             $xmlSigned,
-            DOL_DOCUMENT_ROOT.'/custom/verifactu/aeat/xsd/VeriFactu_v1_0.xsd'
+            __DIR__.'/aeat/xsd/VeriFactu_v1_0.xsd'
         );
 
         if (!$xsd['ok']) {

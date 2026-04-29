@@ -29,8 +29,8 @@ if (empty($user->rights->verifactu->read)) {
 // CLASES
 // ======================================================
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VeriFactuRegistry.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VeriFactuChainValidator.class.php';
+require_once __DIR__.'/class/VeriFactuRegistry.class.php';
+require_once __DIR__.'/class/VeriFactuChainValidator.class.php';
 
 // TCPDF (incluido en Dolibarr)
 require_once DOL_DOCUMENT_ROOT.'/includes/tecnickcom/tcpdf/tcpdf.php';

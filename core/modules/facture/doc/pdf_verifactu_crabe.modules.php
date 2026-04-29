@@ -16,7 +16,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/modules/facture/doc/pdf_crabe.modules.php';
 
 // Helpers VeriFactu
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/lib/verifactu.lib.php';
+require_once __DIR__.'/../../../../lib/verifactu.lib.php';
 
 /**
  * Class pdf_verifactu_crabe
