@@ -1,4 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Schema local de validación VeriFactu (uso interno Dolibarr).
+
+    Este schema NO es el XSD oficial publicado por la AEAT. Es un schema
+    simplificado para validar el XML generado por el módulo antes de la firma
+    XAdES. Cubre todos los campos requeridos por el algoritmo de Huella AEAT y
+    el soporte F1/F2.
+
+    Namespace: igual al utilizado en VeriFactuXmlBuilder (no es URL real AEAT).
+-->
 <xsd:schema
     xmlns:xsd="http://www.w3.org/2001/XMLSchema"
     xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
@@ -6,69 +16,119 @@
     targetNamespace="https://www.agenciatributaria.gob.es/static_files/common/internet/dep/aduanas/es/aeat/sii/reg_factu/VeriFactu.xsd"
     elementFormDefault="qualified">
 
-    <!-- ================================================= -->
-    <!-- ROOT -->
-    <!-- ================================================= -->
+    <!-- ================================================================== -->
+    <!-- ROOT                                                                 -->
+    <!-- ================================================================== -->
     <xsd:element name="RegistroVeriFactu">
         <xsd:complexType>
             <xsd:sequence>
-
                 <xsd:element name="SistemaInformatico" type="SistemaInformaticoType"/>
-                <xsd:element name="Cabecera" type="CabeceraType"/>
-                <xsd:element name="Factura" type="FacturaType"/>
-
-                <!-- ✅ FIRMA XML (XAdES / DSIG) -->
+                <xsd:element name="Cabecera"           type="CabeceraType"/>
+                <xsd:element name="Factura"            type="FacturaType"/>
+                <!-- Firma XAdES — se añade después de la generación del XML -->
                 <xsd:any namespace="http://www.w3.org/2000/09/xmldsig#"
                          processContents="lax"
                          minOccurs="0"
                          maxOccurs="1"/>
-
             </xsd:sequence>
         </xsd:complexType>
     </xsd:element>
 
-    <!-- ================================================= -->
-    <!-- SISTEMA -->
-    <!-- ================================================= -->
+    <!-- ================================================================== -->
+    <!-- SISTEMA INFORMÁTICO                                                  -->
+    <!-- ================================================================== -->
     <xsd:complexType name="SistemaInformaticoType">
         <xsd:sequence>
             <xsd:element name="NombreRazon" type="xsd:string"/>
-            <xsd:element name="NIF" type="xsd:string"/>
-            <xsd:element name="Version" type="xsd:string"/>
-            <xsd:element name="Proveedor" type="xsd:string"/>
+            <xsd:element name="NIF"         type="xsd:string"/>
+            <xsd:element name="Version"     type="xsd:string"/>
+            <xsd:element name="Proveedor"   type="xsd:string"/>
         </xsd:sequence>
     </xsd:complexType>
 
-    <!-- ================================================= -->
-    <!-- CABECERA -->
-    <!-- ================================================= -->
+    <!-- ================================================================== -->
+    <!-- CABECERA                                                             -->
+    <!-- ================================================================== -->
     <xsd:complexType name="CabeceraType">
         <xsd:sequence>
-            <xsd:element name="Ejercicio" type="xsd:gYear"/>
-            <xsd:element name="FechaRegistro" type="xsd:dateTime"/>
+            <xsd:element name="Ejercicio"     type="xsd:gYear"/>
+            <xsd:element name="FechaRegistro" type="xsd:string"/>
         </xsd:sequence>
     </xsd:complexType>
 
-    <!-- ================================================= -->
-    <!-- FACTURA -->
-    <!-- ================================================= -->
+    <!-- ================================================================== -->
+    <!-- FACTURA                                                              -->
+    <!-- ================================================================== -->
     <xsd:complexType name="FacturaType">
         <xsd:sequence>
 
-            <!-- ✅ EMISOR OBLIGATORIO -->
-            <xsd:element name="Emisor">
-                <xsd:complexType>
-                    <xsd:sequence>
-                        <xsd:element name="NombreRazon" type="xsd:string"/>
-                        <xsd:element name="NIF" type="xsd:string"/>
-                    </xsd:sequence>
-                </xsd:complexType>
-            </xsd:element>
+            <!-- Emisor (obligatorio) -->
+            <xsd:element name="Emisor" type="PersonaType"/>
 
+            <!-- Identificación -->
             <xsd:element name="NumeroFactura" type="xsd:string"/>
-            <xsd:element name="FechaFactura" type="xsd:date"/>
-            <xsd:element name="ImporteTotal" type="xsd:decimal"/>
+            <xsd:element name="FechaFactura"  type="xsd:date"/>
 
+            <!-- Tipo F1/F2 — sólo en ALTA -->
+            <xsd:element name="TipoFactura"   type="TipoFacturaType"   minOccurs="0"/>
+
+            <!-- Destinatario identificado — sólo F1 -->
+            <xsd:element name="Destinatario"  type="PersonaType"       minOccurs="0"/>
+
+            <!-- Desglose IVA — sólo ALTA -->
+            <xsd:element name="DetalleIVA"    type="DetalleIVAType"    minOccurs="0"/>
+
+            <!-- Totales -->
+            <xsd:element name="CuotaTotal"    type="xsd:decimal"       minOccurs="0"/>
+            <xsd:element name="ImporteTotal"  type="xsd:decimal"/>
+
+            <!-- Encadenamiento de Huellas -->
+            <xsd:element name="Huella"         type="xsd:string"/>
+            <xsd:element name="HuellaAnterior" type="xsd:string"/>
+
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- ================================================================== -->
+    <!-- PERSONA / EMPRESA                                                    -->
+    <!-- ================================================================== -->
+    <xsd:complexType name="PersonaType">
+        <xsd:sequence>
+            <xsd:element name="NombreRazon" type="xsd:string"/>
+            <xsd:element name="NIF"         type="xsd:string"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- ================================================================== -->
+    <!-- TIPO FACTURA                                                         -->
+    <!-- ================================================================== -->
+    <xsd:simpleType name="TipoFacturaType">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="F1"/>  <!-- Factura completa -->
+            <xsd:enumeration value="F2"/>  <!-- Factura simplificada -->
+            <xsd:enumeration value="R1"/>  <!-- Rectificativa (error fundado en derecho) -->
+            <xsd:enumeration value="R2"/>  <!-- Rectificativa (art. 80.3 LIVA) -->
+            <xsd:enumeration value="R3"/>  <!-- Rectificativa (art. 80.4 LIVA) -->
+            <xsd:enumeration value="R4"/>  <!-- Rectificativa (otras) -->
+            <xsd:enumeration value="R5"/>  <!-- Rectificativa simplificada -->
+        </xsd:restriction>
+    </xsd:simpleType>
+
+    <!-- ================================================================== -->
+    <!-- DESGLOSE IVA                                                         -->
+    <!-- ================================================================== -->
+    <xsd:complexType name="DetalleIVAType">
+        <xsd:sequence>
+            <xsd:element name="DetalleImpuesto" type="DetalleImpuestoType"
+                         minOccurs="1" maxOccurs="unbounded"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="DetalleImpuestoType">
+        <xsd:sequence>
+            <xsd:element name="TipoImpositivo" type="xsd:decimal"/>
+            <xsd:element name="BaseImponible"  type="xsd:decimal"/>
+            <xsd:element name="CuotaIVA"       type="xsd:decimal"/>
         </xsd:sequence>
     </xsd:complexType>
 
