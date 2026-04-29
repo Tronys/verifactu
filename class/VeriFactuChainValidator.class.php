@@ -25,7 +25,7 @@ class VeriFactuChainValidator
      */
     public function validate()
     {
-        require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VeriFactuHash.class.php';
+        require_once __DIR__.'/../class/VeriFactuHash.class.php';
 
         $result = [
             'status'  => 'OK',
@@ -108,7 +108,7 @@ class VeriFactuChainValidator
     {
         global $conf;
 
-        require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VeriFactuHash.class.php';
+        require_once __DIR__.'/../class/VeriFactuHash.class.php';
         require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 
         $facture = new Facture($this->db);

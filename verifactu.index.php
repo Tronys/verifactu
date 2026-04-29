@@ -21,11 +21,11 @@ if (empty($user->rights->verifactu->read)) {
 // ======================================================
 // CLASES
 // ======================================================
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VeriFactuRegistry.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VeriFactuChainValidator.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VerifactuXadesSigner.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VerifactuAeatClient.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/lib/verifactu.lib.php';
+require_once __DIR__.'/class/VeriFactuRegistry.class.php';
+require_once __DIR__.'/class/VeriFactuChainValidator.class.php';
+require_once __DIR__.'/class/VerifactuXadesSigner.php';
+require_once __DIR__.'/class/VerifactuAeatClient.php';
+require_once __DIR__.'/lib/verifactu.lib.php';
 
 // ======================================================
 // IDIOMAS
@@ -258,7 +258,7 @@ print '</form>';
 // ======================================================
 // LISTADO
 // ======================================================
-include DOL_DOCUMENT_ROOT.'/custom/verifactu/tpl/registry_list.tpl.php';
+include __DIR__.'/tpl/registry_list.tpl.php';
 
 // ======================================================
 // PAGINACIÓN

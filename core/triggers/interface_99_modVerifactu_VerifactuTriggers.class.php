@@ -14,11 +14,11 @@
 require_once DOL_DOCUMENT_ROOT.'/core/triggers/dolibarrtriggers.class.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VeriFactuHash.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VerifactuXmlBuilder.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VeriFactuRegistry.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VerifactuAeatClient.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VerifactuXadesSigner.php';
+require_once __DIR__.'/../../class/VeriFactuHash.class.php';
+require_once __DIR__.'/../../class/VerifactuXmlBuilder.php';
+require_once __DIR__.'/../../class/VeriFactuRegistry.class.php';
+require_once __DIR__.'/../../class/VerifactuAeatClient.php';
+require_once __DIR__.'/../../class/VerifactuXadesSigner.php';
 
 class InterfaceVerifactuTriggers extends DolibarrTriggers
 {

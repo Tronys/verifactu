@@ -10,7 +10,7 @@ define('NOLOGIN', 1);
 define('NOCSRFCHECK', 1);
 
 require_once __DIR__ . '/../../main.inc.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/lib/verifactu.lib.php';
+require_once __DIR__.'/lib/verifactu.lib.php';
 
 // --------------------------------------------------
 // Entrada

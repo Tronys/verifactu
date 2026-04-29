@@ -7,8 +7,8 @@
 require_once DOL_DOCUMENT_ROOT . '/core/lib/date.lib.php';
 
 // ✅ RUTAS ABSOLUTAS CORRECTAS EN DOLIBARR
-require_once DOL_DOCUMENT_ROOT . '/custom/verifactu/class/VeriFactuHash.class.php';
-require_once DOL_DOCUMENT_ROOT . '/custom/verifactu/aeat/tsa/VeriFactuTSA.class.php';
+require_once __DIR__ . '/../../class/VeriFactuHash.class.php';
+require_once __DIR__ . '/../../aeat/tsa/VeriFactuTSA.class.php';
 
 class VeriFactuXAdES
 {

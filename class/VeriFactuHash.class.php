@@ -150,7 +150,7 @@ class VeriFactuHash
     {
         global $db, $conf;
 
-        require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VeriFactuChainValidator.class.php';
+        require_once __DIR__.'/../class/VeriFactuChainValidator.class.php';
         require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
 
         $validator  = new VeriFactuChainValidator($db);

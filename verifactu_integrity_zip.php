@@ -29,7 +29,7 @@ if (empty($dateFrom) || empty($dateTo)) {
 // ======================================================
 // CLASES
 // ======================================================
-require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VeriFactuRegistry.class.php';
+require_once __DIR__.'/class/VeriFactuRegistry.class.php';
 
 $registry = new VeriFactuRegistry($db);
 $records  = $registry->fetchFiltered(null, $dateFrom, $dateTo, 100000, 0);
