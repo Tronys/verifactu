@@ -1,265 +1,174 @@
 <?php
-
 defined('DOL_DOCUMENT_ROOT') or die();
 
 /**
- * Hooks VeriFactu para Dolibarr
+ * Hooks de interfaz VeriFactu.
+ *
+ * Responsabilidades:
+ *  - Bloquear en UI la modificación/borrado de facturas registradas
+ *  - Mostrar aviso visual en la ficha de factura protegida
+ *  - Generar el ticket TakePos con QR VeriFactu
+ *
+ * La creación de registros ALTA/BAJA la gestiona el trigger, no este fichero.
  */
-class ActionsVeriFactu
+class ActionsVerifactu
 {
     /**
-     * Hook principal de acciones
+     * Bloquea acciones de modificación/borrado en UI cuando la factura
+     * ya está registrada en VeriFactu.
      */
     public function doActions($parameters, &$object, &$action, $hookmanager)
     {
-        global $conf, $db;
+        global $db;
 
-        // Módulo activo
-        if (empty($conf->verifactu->enabled)) {
+        if (empty($parameters['currentcontext']) || $parameters['currentcontext'] !== 'invoicecard') {
             return 0;
         }
 
-        // Solo facturas
-        if (!is_object($object) || empty($object->element) || $object->element !== 'facture') {
+        if (!is_object($object) || empty($object->id)) {
             return 0;
         }
 
-        /*
-         * =========================
-         * ALTA — FACTURA VALIDADA
-         * =========================
-         */
-        if ($action === 'confirm_validate' || $action === 'validate') {
-
-            // Solo si ya está validada
-            if ((int)$object->statut !== 1) {
-                return 0;
-            }
-
-            // Evitar duplicados
-            if ($this->existRegistry($db, $object->id, 'ALTA')) {
-                return 0;
-            }
-
-            $this->createAltaRegistry($db, $object);
-            return 1;
+        $blocked = ['modif', 'edit', 'confirm_delete'];
+        if (!in_array($action, $blocked, true)) {
+            return 0;
         }
 
-        /*
-         * =========================
-         * BAJA — FACTURA ANULADA
-         * =========================
-         */
-        if ($action === 'confirm_cancel' || $action === 'cancel') {
-
-            // Solo si la factura estaba validada
-            if ((int)$object->statut !== 1) {
-                return 0;
-            }
-
-            // Evitar doble baja
-            if ($this->existRegistry($db, $object->id, 'BAJA')) {
-                return 0;
-            }
-
-            $this->createBajaRegistry($db, $object);
-            return 1;
+        if (!$this->isRegistered($db, $object->id)) {
+            return 0;
         }
 
-        return 0;
+        setEventMessages(
+            'No se puede modificar esta factura porque está registrada en VeriFactu. Emita una factura rectificativa.',
+            null,
+            'errors'
+        );
+
+        $action           = '';
+        $_GET['action']   = '';
+        $_POST['action']  = '';
+
+        return -1;
     }
 
     /**
-     * Bloqueo visual y funcional total
+     * Muestra aviso visual en la ficha de factura protegida por VeriFactu.
      */
     public function formObjectOptions($parameters, &$object, &$action, $hookmanager)
     {
-        global $conf, $db;
+        global $db;
 
-        if (empty($conf->verifactu->enabled)) {
+        if (!is_object($object) || empty($object->id)) {
             return 0;
         }
 
-        if ($object->element !== 'facture') {
+        if (empty($object->element) || $object->element !== 'facture') {
             return 0;
         }
 
         // Solo facturas validadas
-        if ((int)$object->statut !== 1) {
+        if ((int) $object->statut !== 1) {
             return 0;
         }
 
-        // Si tiene registro VeriFactu
-        if (!$this->existAnyRegistry($db, $object->id)) {
+        if (!$this->isRegistered($db, $object->id)) {
             return 0;
         }
 
-        // Aviso
-        print '<div class="warning">';
-        print '<strong>⚠ Factura protegida por VeriFactu</strong><br>';
-        print 'Factura registrada conforme al RD 1007/2023. No puede ser modificada.';
-        print '</div>';
-
-        // Acciones bloqueadas
-        $blocked = ['edit', 'delete', 'modif', 'reopen', 'confirm_delete'];
-
-        if (in_array($action, $blocked)) {
-            accessforbidden();
-        }
+        print '<div class="info">'
+            . '<b>Factura protegida por VeriFactu (RD 1007/2023)</b><br>'
+            . 'Este documento está registrado en el libro de facturación inmutable y no puede modificarse.'
+            . '</div>';
 
         return 0;
     }
 
     /**
-     * Oculta botones de acción
+     * Genera el ticket TakePos con QR VeriFactu.
      */
-    public function addMoreActionsButtons($parameters, &$object, &$action, $hookmanager)
+    public function TakeposReceipt($parameters, &$object, &$action, $hookmanager)
     {
-        global $conf, $db;
+        global $db, $mysoc, $langs;
 
-        if (empty($conf->verifactu->enabled)) {
+        if (!is_object($object) || empty($object->id)) {
             return 0;
         }
 
-        if ($object->element !== 'facture' || (int)$object->statut !== 1) {
-            return 0;
-        }
-
-        if (!$this->existAnyRegistry($db, $object->id)) {
-            return 0;
-        }
-
-        print '<style>
-            .butAction, .butActionDelete {
-                display:none !important;
-            }
-        </style>';
-
-        return 0;
-    }
-
-    /* ============================================================
-     * MÉTODOS PRIVADOS
-     * ============================================================
-     */
-
-    /**
-     * ¿Existe registro de un tipo concreto?
-     */
-    private function existRegistry($db, $factureId, $type)
-    {
-        $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."verifactu_registry
-                WHERE fk_facture = ".((int)$factureId)."
-                AND record_type = '".$db->escape($type)."'
-                LIMIT 1";
-
-        $resql = $db->query($sql);
-        return ($resql && $db->num_rows($resql) > 0);
-    }
-
-    /**
-     * ¿Existe cualquier registro para la factura?
-     */
-    private function existAnyRegistry($db, $factureId)
-    {
-        $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."verifactu_registry
-                WHERE fk_facture = ".((int)$factureId)."
-                LIMIT 1";
-
-        $resql = $db->query($sql);
-        return ($resql && $db->num_rows($resql) > 0);
-    }
-
-    /**
-     * Crear registro ALTA
-     */
-    private function createAltaRegistry($db, $facture)
-    {
-        require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VeriFactuHash.class.php';
-
-        $previousHash = $this->getLastHash($db);
-        $hash = VeriFactuHash::calculate($facture, $previousHash);
-
-        $sql = "INSERT INTO ".MAIN_DB_PREFIX."verifactu_registry (
-                    fk_facture,
-                    record_type,
-                    hash_actual,
-                    hash_anterior,
-                    date_creation,
-                    total_ttc,
-                    aeat_status
-                ) VALUES (
-                    ".((int)$facture->id).",
-                    'ALTA',
-                    '".$db->escape($hash)."',
-                    ".($previousHash ? "'".$db->escape($previousHash)."'" : "NULL").",
-                    '".$db->idate(dol_now())."',
-                    ".((float)$facture->total_ttc).",
-                    'PENDING'
-                )";
-
-        $db->query($sql);
-    }
-
-    /**
-     * Crear registro BAJA
-     */
-    private function createBajaRegistry($db, $facture)
-    {
-        require_once DOL_DOCUMENT_ROOT.'/custom/verifactu/class/VeriFactuHash.class.php';
-
-        // Hash original ALTA
         $sql = "SELECT hash_actual FROM ".MAIN_DB_PREFIX."verifactu_registry
-                WHERE fk_facture = ".((int)$facture->id)."
-                AND record_type = 'ALTA'
-                ORDER BY rowid ASC LIMIT 1";
-
-        $resql = $db->query($sql);
-        if (!$resql || !$db->num_rows($resql)) {
-            return;
-        }
-
-        $obj = $db->fetch_object($resql);
-        $originalHash = $obj->hash_actual;
-
-        $previousHash = $this->getLastHash($db);
-        $hash = VeriFactuHash::calculateCancel($facture, $previousHash, $originalHash);
-
-        $sql = "INSERT INTO ".MAIN_DB_PREFIX."verifactu_registry (
-                    fk_facture,
-                    fk_facture_origin,
-                    record_type,
-                    hash_actual,
-                    hash_anterior,
-                    date_creation,
-                    total_ttc,
-                    aeat_status
-                ) VALUES (
-                    ".((int)$facture->id).",
-                    ".((int)$facture->id).",
-                    'BAJA',
-                    '".$db->escape($hash)."',
-                    '".$db->escape($previousHash)."',
-                    '".$db->idate(dol_now())."',
-                    ".((float)$facture->total_ttc).",
-                    'PENDING'
-                )";
-
-        $db->query($sql);
-    }
-
-    /**
-     * Obtener el último hash de la cadena
-     */
-    private function getLastHash($db)
-    {
-        $sql = "SELECT hash_actual FROM ".MAIN_DB_PREFIX."verifactu_registry
+                WHERE fk_facture = ".(int) $object->id."
                 ORDER BY rowid DESC LIMIT 1";
 
         $resql = $db->query($sql);
-        if ($resql && $obj = $db->fetch_object($resql)) {
-            return $obj->hash_actual;
+        if (!$resql || !$db->num_rows($resql)) {
+            return 0;
         }
-        return null;
+
+        $reg = $db->fetch_object($resql);
+        if (empty($reg->hash_actual)) {
+            return 0;
+        }
+
+        $baseUrl = getDolGlobalString('MAIN_URL_ROOT');
+        if (empty($baseUrl)) {
+            $scheme  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $baseUrl = $scheme . '://' . $_SERVER['HTTP_HOST'];
+        }
+
+        $verifyUrl = $baseUrl . '/custom/verifactu/verifactu.card.php?hash=' . urlencode($reg->hash_actual);
+        $qrImg     = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' . urlencode($verifyUrl);
+
+        ob_start();
+        ?>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Ticket</title>
+</head>
+<body style="font-family:Arial,sans-serif;font-size:12px">
+<center><b><?php echo dol_escape_htmltag($mysoc->name); ?></b></center>
+<br>
+<div style="text-align:right">
+    <?php echo $langs->trans('Date').' '.dol_print_date($object->date, 'day'); ?><br>
+    <?php echo dol_escape_htmltag($object->ref); ?>
+</div>
+<hr>
+<table width="100%">
+<?php foreach ($object->lines as $line): ?>
+<tr>
+    <td><?php echo dol_escape_htmltag($line->desc ?: $line->product_label); ?></td>
+    <td align="right"><?php echo $line->qty; ?></td>
+    <td align="right"><?php echo price($line->total_ttc); ?></td>
+</tr>
+<?php endforeach; ?>
+</table>
+<hr>
+<table width="100%">
+<tr>
+    <td>Total</td>
+    <td align="right"><?php echo price($object->total_ttc); ?></td>
+</tr>
+</table>
+<br>
+<center>
+    <img src="<?php echo $qrImg; ?>" style="width:120px;height:120px"><br>
+    <span style="font-size:10px">Factura verificable (VeriFactu)</span>
+</center>
+<script>window.print();</script>
+</body>
+</html>
+        <?php
+        $this->resprints = ob_get_clean();
+        return 1;
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    private function isRegistered($db, $factureId)
+    {
+        $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."verifactu_registry
+                WHERE fk_facture = ".(int) $factureId." LIMIT 1";
+        $res = $db->query($sql);
+        return ($res && $db->num_rows($res) > 0);
     }
 }
